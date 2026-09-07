@@ -1,0 +1,10 @@
+{
+  "name": "voiceshield-ai",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "typecheck": "npm --prefix frontend run build && npm --prefix backend run typecheck"
+  }
+}
