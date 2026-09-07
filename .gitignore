@@ -8,3 +8,4 @@ backend/data/
 frontend/dist/
 playwright-report/
 test-results/
+mcp.json
