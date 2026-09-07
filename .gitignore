@@ -6,3 +6,5 @@ dist/
 .DS_Store
 backend/data/
 frontend/dist/
+playwright-report/
+test-results/

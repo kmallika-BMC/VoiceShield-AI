@@ -3,8 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "dev": "concurrently --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
-    "typecheck": "npm --prefix frontend run build && npm --prefix backend run typecheck"
+    "typecheck": "npm --prefix frontend run build && npm --prefix backend run typecheck",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "concurrently": "^10.0.5"
   }
 }
