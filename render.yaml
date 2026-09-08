@@ -4,7 +4,7 @@ services:
     runtime: docker
     rootDir: backend
     healthCheckPath: /api/health
-    plan: starter
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -28,7 +28,3 @@ services:
         value: "60000"
       - key: RATE_LIMIT_MAX_REQUESTS
         value: "1000"
-    disk:
-      name: voiceshield-data
-      mountPath: /app/data
-      sizeGB: 1
