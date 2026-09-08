@@ -7,7 +7,11 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "db:verify": "tsx src/scripts/verify-db.ts"
+    "db:verify": "tsx src/scripts/verify-db.ts",
+    "test:unit": "tsx --test test/unit/**/*.test.ts",
+    "test:integration": "set NODE_ENV=test&& tsx --test test/integration/**/*.test.ts"
+    ,"test:performance": "set NODE_ENV=test&& tsx --test test/performance/**/*.test.ts"
+    ,"test:security": "set NODE_ENV=test&& tsx --test test/security/**/*.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",

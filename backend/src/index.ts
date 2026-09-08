@@ -12,7 +12,7 @@ import { adminRouter } from './routes/admin.js'
 import { enforceHttps, rateLimit } from './middleware/security.js'
 import { validateJsonBody } from './middleware/validation.js'
 
-const app = express()
+export const app = express()
 
 app.set('trust proxy', 1)
 app.use(cors({ origin: config.corsOrigin }))
@@ -51,6 +51,8 @@ app.use((error: unknown, _req: express.Request, res: express.Response, next: exp
   next(error)
 })
 
-app.listen(config.port, () => {
-  console.log(`VoiceShield API listening on port ${config.port}`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(config.port, () => {
+    console.log(`VoiceShield API listening on port ${config.port}`)
+  })
+}

@@ -62,10 +62,49 @@ test('invalid login credentials are rejected', async ({ page }) => {
   await expect(page.getByText('Invalid email or password.')).toBeVisible()
 })
 
+test('administrator login is discoverable and rejects invalid credentials', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('link', { name: 'Administrator login' })).toHaveAttribute('href', '/admin/login')
+  await page.getByRole('link', { name: 'Administrator login' }).click()
+  await expect(page).toHaveURL(/\/admin\/login$/)
+  await expect(page.getByRole('heading', { name: 'Administrator login' })).toBeVisible()
+  await page.getByPlaceholder('Admin email').fill('not-an-admin@voiceshield.test')
+  await page.getByPlaceholder('Admin password').fill('wrong-password')
+  await page.getByRole('button', { name: 'Sign in as admin' }).click()
+  await expect(page.getByText('Invalid administrator credentials.')).toBeVisible()
+})
+
 test('protected dashboard rejects unauthenticated users', async ({ page }) => {
   await page.goto('/dashboard')
 
   await expect(page.getByText('Authentication required.')).toBeVisible()
+})
+
+test('admin dashboard rejects unauthenticated browser sessions', async ({ page }) => {
+  await page.goto('/admin')
+  await expect(page.getByText('Authentication required.')).toBeVisible()
+})
+
+test('profile exposes MFA and security phrase controls after login', async ({ page }) => {
+  const email = uniqueEmail()
+  await page.goto('/register')
+  await page.getByLabel('Name').fill('MFA UI User')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('secure-password-123')
+  await page.getByRole('button', { name: 'Create account' }).click()
+  await expect(page.getByText(`Account created for ${email}.`)).toBeVisible()
+
+  await page.goto('/login')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('secure-password-123')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+  await page.goto('/dashboard/profile')
+
+  await expect(page.getByRole('heading', { name: 'Multi-factor verification' })).toBeVisible()
+  await expect(page.getByText('OTP verification')).toBeVisible()
+  await expect(page.getByText('Email verification')).toBeVisible()
+  await expect(page.getByText('Security phrase challenge')).toBeVisible()
 })
 
 test('valid login grants access to the protected dashboard', async ({ page }) => {

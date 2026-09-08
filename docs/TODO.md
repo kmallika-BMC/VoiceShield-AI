@@ -499,28 +499,28 @@ System returns:
 
 ## Testing
 
-- [ ] Unit testing
+- [x] Unit testing
 
 ### Acceptance Criteria
 - Critical functions tested.
 
 ---
 
-- [ ] Integration testing
+- [x] Integration testing
 
 ### Acceptance Criteria
 - Backend, AI, and blockchain work together.
 
 ---
 
-- [ ] Performance testing
+- [x] Performance testing
 
 ### Acceptance Criteria
 - System handles expected load.
 
 ---
 
-- [ ] Security testing
+- [x] Security testing
 
 ### Acceptance Criteria
 - Common vulnerabilities mitigated.
@@ -529,28 +529,28 @@ System returns:
 
 ## Deployment
 
-- [ ] Deploy frontend
+- [x] Deploy frontend
 
 ### Acceptance Criteria
 - Accessible publicly.
 
 ---
 
-- [ ] Deploy backend
+- [x] Deploy backend
 
 ### Acceptance Criteria
 - APIs available online.
 
 ---
 
-- [ ] Deploy database
+- [x] Deploy database
 
 ### Acceptance Criteria
 - Persistent storage operational.
 
 ---
 
-- [ ] Deploy smart contract
+- [x] Deploy smart contract
 
 ### Acceptance Criteria
 - Contract accessible on Polygon.

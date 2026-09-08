@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+process.env.DATABASE_PATH = './data/voiceshield-e2e'
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,

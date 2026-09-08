@@ -7,7 +7,12 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "typecheck": "npm --prefix frontend run build && npm --prefix backend run typecheck",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "npm --prefix backend run test:unit",
+    "test:integration": "npm --prefix backend run test:integration",
+    "test": "npm run test:unit && npm run test:integration"
+    ,"test:performance": "npm --prefix backend run test:performance"
+    ,"test:security": "npm --prefix backend run test:security"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

@@ -4,10 +4,14 @@ import path from 'node:path'
 import { config } from './config.js'
 
 let db: PGlite | null = null
+let dbPromise: Promise<PGlite> | null = null
 
 export async function getDb(): Promise<PGlite> {
   if (db) {
     return db
+  }
+  if (dbPromise) {
+    return dbPromise
   }
 
   const dataDir = path.isAbsolute(config.databasePath)
@@ -16,8 +20,8 @@ export async function getDb(): Promise<PGlite> {
 
   fs.mkdirSync(path.dirname(dataDir), { recursive: true })
 
-  db = await PGlite.create(dataDir)
-  await db.exec(`
+  dbPromise = PGlite.create(dataDir).then(async (instance) => {
+    await instance.exec(`
     CREATE TABLE IF NOT EXISTS users (
       user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
@@ -121,9 +125,17 @@ export async function getDb(): Promise<PGlite> {
       network TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-  `)
+    `)
+    db = instance
+    return instance
+  })
 
-  return db
+  try {
+    return await dbPromise
+  } catch (error) {
+    dbPromise = null
+    throw error
+  }
 }
 
 export async function pingDatabase(): Promise<boolean> {

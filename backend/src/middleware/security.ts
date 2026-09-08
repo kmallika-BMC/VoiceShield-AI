@@ -4,7 +4,7 @@ type RateLimitEntry = { count: number; resetAt: number }
 
 const requests = new Map<string, RateLimitEntry>()
 const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000
-const maxRequests = Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 120
+const maxRequests = Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000
 
 export function enforceHttps(req: Request, res: Response, next: NextFunction) {
   if (process.env.NODE_ENV === 'production' && !isSecureRequest(req)) {
