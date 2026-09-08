@@ -467,28 +467,28 @@ System returns:
 
 ## Security Features
 
-- [ ] HTTPS enforcement
+- [x] HTTPS enforcement
 
 ### Acceptance Criteria
 - All traffic encrypted.
 
 ---
 
-- [ ] Rate limiting
+- [x] Rate limiting
 
 ### Acceptance Criteria
 - API abuse prevented.
 
 ---
 
-- [ ] Input validation
+- [x] Input validation
 
 ### Acceptance Criteria
 - Invalid data rejected safely.
 
 ---
 
-- [ ] Audit logging
+- [x] Audit logging
 
 ### Acceptance Criteria
 - Security events recorded.

@@ -9,11 +9,17 @@ import { voiceRouter } from './routes/voice.js'
 import { analysisRouter } from './routes/analysis.js'
 import { detectionRouter } from './routes/detection.js'
 import { adminRouter } from './routes/admin.js'
+import { enforceHttps, rateLimit } from './middleware/security.js'
+import { validateJsonBody } from './middleware/validation.js'
 
 const app = express()
 
+app.set('trust proxy', 1)
 app.use(cors({ origin: config.corsOrigin }))
-app.use(express.json())
+app.use(enforceHttps)
+app.use('/api', rateLimit)
+app.use(express.json({ limit: '1mb' }))
+app.use(validateJsonBody)
 app.use('/api/auth', authRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/profile', profileRouter)
@@ -31,6 +37,18 @@ app.get('/api/health', async (_req, res) => {
   }
 
   res.status(200).json({ status: 'ok', database: 'connected' })
+})
+
+app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (error instanceof SyntaxError && 'body' in error) {
+    res.status(400).json({ error: 'Invalid JSON payload.' })
+    return
+  }
+  if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Request payload is too large.' })
+    return
+  }
+  next(error)
 })
 
 app.listen(config.port, () => {

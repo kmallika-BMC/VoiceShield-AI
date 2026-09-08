@@ -6,6 +6,7 @@ import { createAccessToken } from '../auth/jwt.js'
 import { getDb } from '../db.js'
 import { requireAuth } from '../middleware/require-auth.js'
 import { config } from '../config.js'
+import { recordAuditEvent } from '../audit.js'
 
 const MINIMUM_PASSWORD_LENGTH = 8
 
@@ -72,28 +73,36 @@ authRouter.post('/login', async (req, res, next) => {
     const user = result.rows[0]
 
     if (!user || !(await verifyPassword(password, user.password_hash))) {
+      await recordAuditEvent('login.failure', 'Invalid user credentials.', undefined, req.ip)
       res.status(401).json({ error: 'Invalid email or password.' })
       return
     }
 
+    await recordAuditEvent('login.success', 'User authenticated successfully.', user.user_id, req.ip)
     res.json({
       token: createAccessToken({ userId: user.user_id, email: user.email, role: user.role }),
       user: { user_id: user.user_id, name: user.name, email: user.email },
     })
 
-    authRouter.post('/admin-login', async (req, res) => {
-      const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-      const password = typeof req.body?.password === 'string' ? req.body.password : ''
-      if (!config.adminEmail || !config.adminPassword || email !== config.adminEmail.toLowerCase() || password !== config.adminPassword) {
-        res.status(401).json({ error: 'Invalid administrator credentials.' })
-        return
-      }
-      res.json({
-        token: createAccessToken({ userId: 'admin-configured', email, role: 'admin' }),
-        user: { name: 'Administrator', email, role: 'admin' },
-      })
-    })
+  } catch (error) {
+    next(error)
+  }
+})
 
+authRouter.post('/admin-login', async (req, res, next) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+    const password = typeof req.body?.password === 'string' ? req.body.password : ''
+    if (!config.adminEmail || !config.adminPassword || email !== config.adminEmail.toLowerCase() || password !== config.adminPassword) {
+      await recordAuditEvent('admin_login.failure', 'Invalid administrator credentials.', undefined, req.ip)
+      res.status(401).json({ error: 'Invalid administrator credentials.' })
+      return
+    }
+    await recordAuditEvent('admin_login.success', 'Administrator authenticated successfully.', undefined, req.ip)
+    res.json({
+      token: createAccessToken({ userId: 'admin-configured', email, role: 'admin' }),
+      user: { name: 'Administrator', email, role: 'admin' },
+    })
   } catch (error) {
     next(error)
   }

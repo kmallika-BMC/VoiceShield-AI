@@ -20,6 +20,19 @@ adminRouter.get('/users', requireAdmin, async (_req, res, next) => {
   }
 })
 
+adminRouter.get('/audit', requireAdmin, async (_req, res, next) => {
+  try {
+    const database = await getDb()
+    const result = await database.query(
+      `SELECT audit_id, event_type, details, ip_address, created_at
+       FROM audit_logs ORDER BY created_at DESC LIMIT 100`,
+    )
+    res.json({ entries: result.rows })
+  } catch (error) {
+    next(error)
+  }
+})
+
 adminRouter.get('/detections', requireAdmin, async (_req, res, next) => {
   try {
     const database = await getDb()

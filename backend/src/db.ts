@@ -105,6 +105,14 @@ export async function getDb(): Promise<PGlite> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       verified_at TIMESTAMPTZ
     );
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      audit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      event_type TEXT NOT NULL,
+      details TEXT NOT NULL,
+      ip_address TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS blockchain_registrations (
       registration_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,

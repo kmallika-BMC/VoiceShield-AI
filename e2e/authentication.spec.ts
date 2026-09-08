@@ -625,3 +625,20 @@ test('regular users cannot access the admin user-management endpoint', async () 
   })
   expect(response.status).toBe(403)
 })
+
+test('invalid JSON payloads are rejected with a safe validation error', async () => {
+  const response = await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{"name":',
+  })
+  expect(response.status).toBe(400)
+  expect((await response.json()).error).toContain('Invalid JSON')
+})
+
+test('authenticated admin audit endpoint returns security events', async () => {
+  const response = await fetch('http://localhost:5000/api/admin/audit', {
+    headers: { Authorization: 'Bearer invalid-token' },
+  })
+  expect(response.status).toBe(401)
+})
