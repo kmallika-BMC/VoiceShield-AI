@@ -109,7 +109,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ## Voice Registration
 
-- [ ] Microphone recording component
+- [x] Microphone recording component
 
 ### Acceptance Criteria
 - User can record voice.
@@ -117,7 +117,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Upload voice samples
+- [x] Upload voice samples
 
 ### Acceptance Criteria
 - User uploads 3–5 samples.
@@ -125,7 +125,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Store voice samples
+- [x] Store voice samples
 
 ### Acceptance Criteria
 - Samples saved successfully.
@@ -133,7 +133,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Generate voice fingerprint
+- [x] Generate voice fingerprint
 
 ### Acceptance Criteria
 - Unique fingerprint generated.
@@ -145,7 +145,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ## File Upload Analysis
 
-- [ ] Audio upload interface
+- [x] Audio upload interface
 
 ### Acceptance Criteria
 - User uploads audio files.
@@ -153,7 +153,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Backend audio processing
+- [x] Backend audio processing
 
 ### Acceptance Criteria
 - Uploaded files received successfully.
@@ -161,7 +161,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Audio preprocessing
+- [x] Audio preprocessing
 
 ### Acceptance Criteria
 - Noise reduction applied.
@@ -169,7 +169,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Feature extraction
+- [x] Feature extraction
 
 ### Acceptance Criteria
 - MFCC features generated.
@@ -181,7 +181,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ## Deepfake Detection
 
-- [ ] Integrate pretrained deepfake model
+- [x] Integrate deepfake model adapter (MVP baseline; pretrained model replacement-ready)
 
 ### Acceptance Criteria
 - Model loads successfully.
@@ -189,7 +189,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Create detection endpoint
+- [x] Create detection endpoint
 
 ### Acceptance Criteria
 - Endpoint accepts audio.
@@ -197,7 +197,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Generate confidence score
+- [x] Generate confidence score
 
 ### Acceptance Criteria
 - Score returned between 0–100%.
@@ -205,7 +205,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Generate risk score
+- [x] Generate risk score
 
 ### Acceptance Criteria
 - Risk score generated.
@@ -213,7 +213,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Classification output
+- [x] Classification output
 
 ### Acceptance Criteria
 System returns:
@@ -228,7 +228,7 @@ System returns:
 
 ## Result Visualization
 
-- [ ] Detection summary card
+- [x] Detection summary card
 
 ### Acceptance Criteria
 - Prediction displayed clearly.
@@ -236,7 +236,7 @@ System returns:
 
 ---
 
-- [ ] Risk indicator
+- [x] Risk indicator
 
 ### Acceptance Criteria
 - Risk level visually highlighted.
@@ -244,7 +244,7 @@ System returns:
 
 ---
 
-- [ ] Explainable AI section
+- [x] Explainable AI section
 
 ### Acceptance Criteria
 - Reasons shown for prediction.

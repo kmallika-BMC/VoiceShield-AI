@@ -129,3 +129,116 @@ test('user can update profile name and see the persisted value', async ({ page }
   await page.reload()
   await expect(page.getByLabel('Display name')).toHaveValue('Updated Profile Name')
 })
+
+test('voice enrollment requires between 3 and 5 samples', async ({ page }) => {
+  await page.route('**/api/dashboard', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { user_id: 'test', name: 'Voice User', email: 'voice@example.com' } }) })
+  })
+  await page.addInitScript(() => {
+    localStorage.setItem('voiceshield_access_token', 'test-token')
+  })
+  await page.goto('/dashboard/analysis')
+  await expect(page.getByRole('heading', { name: 'Voice analysis' })).toBeVisible()
+  await expect(page.getByText('Record samples or choose WAV, MP3, and M4A files.')).toBeVisible()
+})
+
+test('voice samples are stored and assigned an enrollment fingerprint', async ({ request }) => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  const registration = await request.post('http://localhost:5000/api/auth/register', {
+    data: { name: 'Voice API User', email, password },
+  })
+
+  expect(registration.ok()).toBeTruthy()
+
+  const login = await request.post('http://localhost:5000/api/auth/login', {
+    data: { email, password },
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const form = new FormData()
+  form.append('samples', new Blob(['sample-one'], { type: 'audio/wav' }), 'one.wav')
+  form.append('samples', new Blob(['sample-two'], { type: 'audio/wav' }), 'two.wav')
+  form.append('samples', new Blob(['sample-three'], { type: 'audio/wav' }), 'three.wav')
+  const upload = await fetch('http://localhost:5000/api/voice/samples', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+    body: form,
+  })
+  const body = (await upload.json()) as { samples?: unknown[]; fingerprint?: string }
+
+  expect(upload.status).toBe(201)
+  expect(body.samples).toHaveLength(3)
+  expect(body.fingerprint).toMatch(/^[a-f0-9]{64}$/)
+})
+
+test('audio upload starts a protected processing job', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  const registration = await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Analysis API User', email, password }),
+  })
+  expect(registration.ok).toBeTruthy()
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const form = new FormData()
+  form.append('audio', new Blob(['audio-content'], { type: 'audio/wav' }), 'recording.wav')
+  const upload = await fetch('http://localhost:5000/api/analysis/uploads', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+    body: form,
+  })
+  const body = (await upload.json()) as { job?: { status: string; original_name: string } }
+
+  expect(upload.status).toBe(202)
+  expect(body.job?.original_name).toBe('recording.wav')
+  expect(body.job?.status).toBe('complete')
+  expect(body.job?.mfcc).toHaveLength(13)
+  expect(body.job?.spectrogram?.length).toBeGreaterThan(0)
+})
+
+test('audio detection returns a model prediction for an authenticated user', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Detection API User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const form = new FormData()
+  form.append('audio', new Blob(['audio-content'], { type: 'audio/wav' }), 'detection.wav')
+  const response = await fetch('http://localhost:5000/api/detection/predict', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+    body: form,
+  })
+  const body = (await response.json()) as {
+    modelLoaded: boolean
+    prediction: string
+    classification: string
+    confidenceScore: number
+    riskScore: number
+    reasons: string[]
+  }
+
+  expect(response.status).toBe(200)
+  expect(body.modelLoaded).toBe(true)
+  expect(['Genuine', 'Suspicious', 'AI Generated']).toContain(body.prediction)
+  expect(body.classification).toBe(body.prediction)
+  expect(body.confidenceScore).toBeGreaterThanOrEqual(0)
+  expect(body.confidenceScore).toBeLessThanOrEqual(100)
+  expect(body.riskScore).toBeGreaterThanOrEqual(0)
+  expect(body.riskScore).toBeLessThanOrEqual(100)
+  expect(body.reasons.length).toBeGreaterThan(0)
+})

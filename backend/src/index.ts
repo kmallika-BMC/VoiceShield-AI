@@ -5,6 +5,9 @@ import { pingDatabase } from './db.js'
 import { authRouter } from './routes/auth.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { profileRouter } from './routes/profile.js'
+import { voiceRouter } from './routes/voice.js'
+import { analysisRouter } from './routes/analysis.js'
+import { detectionRouter } from './routes/detection.js'
 
 const app = express()
 
@@ -13,6 +16,9 @@ app.use(express.json())
 app.use('/api/auth', authRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/profile', profileRouter)
+app.use('/api/voice', voiceRouter)
+app.use('/api/analysis', analysisRouter)
+app.use('/api/detection', detectionRouter)
 
 app.get('/api/health', async (_req, res) => {
   const databaseConnected = await pingDatabase()

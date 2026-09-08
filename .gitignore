@@ -5,6 +5,8 @@ dist/
 *.log
 .DS_Store
 backend/data/
+backend/data/voice-samples/
+backend/data/analysis/
 frontend/dist/
 playwright-report/
 test-results/

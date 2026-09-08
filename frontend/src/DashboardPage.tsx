@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import VoiceEnrollment from './VoiceEnrollment'
+import AudioAnalysis from './AudioAnalysis'
 
 type DashboardUser = { user_id: string; name: string; email: string }
 
@@ -186,6 +188,8 @@ export default function DashboardPage() {
               </article>
             </section>
           )}
+          {user && window.location.pathname === '/dashboard/analysis' && <VoiceEnrollment />}
+          {user && window.location.pathname === '/dashboard/analysis' && <AudioAnalysis />}
           {user && window.location.pathname === '/dashboard/profile' && (
             <form className="mt-6 max-w-xl rounded-2xl border border-white/10 bg-white/5 p-6" onSubmit={saveProfile}>
               <label className="block text-sm text-slate-300">
