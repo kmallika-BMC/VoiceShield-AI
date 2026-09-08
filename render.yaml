@@ -18,12 +18,6 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      - key: POLYGON_RPC_URL
-        sync: false
-      - key: POLYGON_PRIVATE_KEY
-        sync: false
-      - key: POLYGON_CONTRACT_ADDRESS
-        sync: false
       - key: RATE_LIMIT_WINDOW_MS
         value: "60000"
       - key: RATE_LIMIT_MAX_REQUESTS
