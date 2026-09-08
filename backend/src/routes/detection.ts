@@ -30,6 +30,27 @@ function analyzeAudioBuffer(buffer: Buffer) {
   })
 }
 
+async function saveAlert(userId: string | undefined, classification: string, riskScore: number) {
+  if (!userId || (classification !== 'Suspicious' && classification !== 'AI Generated') && riskScore < 70) return
+  const highRisk = riskScore >= 70
+  const database = await getDb()
+  await database.query(
+    `INSERT INTO alert_logs
+      (user_id, alert_type, title, message, classification, risk_score)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      userId,
+      highRisk ? 'high-risk' : 'suspicious',
+      highRisk ? 'High-risk voice detected' : 'Suspicious voice detected',
+      highRisk
+        ? `Voice analysis reached ${riskScore}% risk. Stop the interaction and verify the speaker.`
+        : 'Synthetic speech indicators were found. Review the detection result before continuing.',
+      classification,
+      riskScore,
+    ],
+  )
+}
+
 detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req, res, next) => {
   const file = req.file
   if (!file) {
@@ -39,6 +60,7 @@ detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req
 
   try {
     const result = analyzeAudioBuffer(file.buffer)
+    await saveAlert(req.user?.userId, result.classification, result.riskScore)
     const database = await getDb()
     await database.query(
       `INSERT INTO detection_logs
@@ -69,11 +91,29 @@ detectionRouter.post('/live', requireAuth, upload.single('audio'), async (req, r
 
   try {
     const result = analyzeAudioBuffer(file.buffer)
+    await saveAlert(req.user?.userId, result.classification, result.riskScore)
     res.json({
       modelLoaded: isVoiceModelLoaded(),
       prediction: result.classification,
       ...result,
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+detectionRouter.get('/alerts', requireAuth, async (req, res, next) => {
+  try {
+    const database = await getDb()
+    const result = await database.query(
+      `SELECT alert_id, alert_type, title, message, classification, risk_score, acknowledged, created_at
+       FROM alert_logs
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [req.user?.userId],
+    )
+    res.json({ entries: result.rows })
   } catch (error) {
     next(error)
   }

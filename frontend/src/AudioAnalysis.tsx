@@ -18,6 +18,10 @@ export default function AudioAnalysis() {
   const [liveRecording, setLiveRecording] = useState(false)
   const [liveResult, setLiveResult] = useState<LiveDetection | null>(null)
   const [liveLatency, setLiveLatency] = useState<number | null>(null)
+  const [alert, setAlert] = useState<{ title: string; message: string; highRisk: boolean } | null>(null)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    typeof Notification === 'undefined' ? 'denied' : Notification.permission,
+  )
   const liveRecorder = useRef<MediaRecorder | null>(null)
   const liveStream = useRef<MediaStream | null>(null)
 
@@ -25,6 +29,27 @@ export default function AudioAnalysis() {
     liveRecorder.current?.stop()
     liveStream.current?.getTracks().forEach((track) => track.stop())
   }, [])
+
+  function notifyDetection(prediction: string, risk: number) {
+    const highRisk = risk >= 70
+    const suspicious = prediction === 'Suspicious' || prediction === 'AI Generated'
+    if (!suspicious && !highRisk) return
+
+    const title = highRisk ? 'High-risk voice detected' : 'Suspicious voice detected'
+    const message = highRisk
+      ? `Voice analysis reached ${risk}% risk. Stop the interaction and verify the speaker.`
+      : 'Synthetic speech indicators were found. Review the detection result before continuing.'
+    setAlert({ title, message, highRisk })
+    if (notificationPermission === 'granted') {
+      new Notification(title, { body: message })
+    }
+  }
+
+  async function enableNotifications() {
+    if (typeof Notification === 'undefined') return
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+  }
 
   async function analyzeLiveChunk(chunk: Blob) {
     const form = new FormData()
@@ -49,6 +74,7 @@ export default function AudioAnalysis() {
       confidenceScore: result.confidenceScore,
       riskScore: result.riskScore,
     })
+    notifyDetection(result.prediction, result.riskScore)
     setLiveLatency(Math.round(performance.now() - startedAt))
   }
 
@@ -162,6 +188,7 @@ export default function AudioAnalysis() {
       setConfidenceScore(detection.confidenceScore)
       setRiskScore(detection.riskScore)
       setReasons(detection.reasons)
+      notifyDetection(detection.classification, detection.riskScore)
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Unable to upload audio.')
       setStatus(null)
@@ -172,6 +199,24 @@ export default function AudioAnalysis() {
 
   return (
     <section className="mt-6 max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6">
+      {alert && (
+        <div aria-label="Detection alert" className={`mb-5 rounded-xl border p-4 ${alert.highRisk ? 'border-rose-300/50 bg-rose-400/15' : 'border-amber-300/50 bg-amber-300/10'}`} role="alert">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-white">{alert.title}</p>
+              <p className="mt-1 text-sm text-slate-200">{alert.message}</p>
+            </div>
+            <button className="text-sm text-slate-300 hover:text-white" onClick={() => setAlert(null)} type="button">
+              Dismiss
+            </button>
+          </div>
+          {alert.highRisk && notificationPermission !== 'granted' && notificationPermission !== 'denied' && (
+            <button className="mt-3 rounded-lg border border-white/20 px-3 py-2 text-xs text-white" onClick={enableNotifications} type="button">
+              Enable desktop warnings
+            </button>
+          )}
+        </div>
+      )}
       <h2 className="text-lg font-semibold text-white">Analyze an audio recording</h2>
       <p className="mt-2 text-sm leading-6 text-slate-300">
         Upload a WAV, MP3, or M4A recording to start an audio processing job.

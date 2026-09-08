@@ -16,6 +16,14 @@ type DetectionStats = {
   classifications: Record<'Genuine' | 'Suspicious' | 'AI Generated', number>
   riskTrend: Array<{ day: string; averageRisk: number; detections: number }>
 }
+type AlertLog = {
+  alert_id: string
+  title: string
+  message: string
+  classification: string
+  risk_score: number
+  created_at: string
+}
 
 const navigation = [
   { label: 'Overview', href: '/dashboard' },
@@ -79,6 +87,12 @@ export default function DashboardPage() {
   const [historyDateTo, setHistoryDateTo] = useState('')
   const [stats, setStats] = useState<DetectionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [alerts, setAlerts] = useState<AlertLog[]>([])
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null)
+  const [otpCode, setOtpCode] = useState('')
+  const [emailToken, setEmailToken] = useState('')
+  const [devOtp, setDevOtp] = useState<string | null>(null)
+  const [devEmailToken, setDevEmailToken] = useState<string | null>(null)
   const content = pageContent(window.location.pathname)
 
   useEffect(() => {
@@ -141,6 +155,19 @@ export default function DashboardPage() {
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load detection history.'))
   }, [historyClassification, historyDateFrom, historyDateTo, historyPage])
 
+  useEffect(() => {
+    if (window.location.pathname !== '/dashboard/history') return
+    const token = localStorage.getItem('voiceshield_access_token')
+    if (!token) return
+    fetch('/api/detection/alerts', { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const result: { entries?: AlertLog[]; error?: string } = await response.json()
+        if (!response.ok || !result.entries) throw new Error(result.error ?? 'Unable to load alert history.')
+        setAlerts(result.entries)
+      })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load alert history.'))
+  }, [])
+
   function signOut() {
     localStorage.removeItem('voiceshield_access_token')
     window.location.href = '/login'
@@ -166,6 +193,7 @@ export default function DashboardPage() {
       if (!response.ok || !result.user) {
         throw new Error(result.error ?? 'Unable to update profile.')
       }
+
       setUser(result.user)
       setName(result.user.name)
       setProfileMessage('Profile updated successfully.')
@@ -174,6 +202,35 @@ export default function DashboardPage() {
     } finally {
       setIsSaving(false)
     }
+
+  }
+
+  async function requestSecurityChallenge(kind: 'otp' | 'email') {
+    const token = localStorage.getItem('voiceshield_access_token')
+    const response = await fetch(`/api/auth/${kind}/request`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token ?? ''}` },
+    })
+    const result: { message?: string; developmentCode?: string; developmentToken?: string; error?: string } = await response.json()
+    if (!response.ok) {
+      setError(result.error ?? 'Unable to start verification.')
+      return
+    }
+    setSecurityMessage(result.message ?? 'Verification challenge sent.')
+    if (result.developmentCode) setDevOtp(result.developmentCode)
+    if (result.developmentToken) setDevEmailToken(result.developmentToken)
+  }
+
+  async function verifySecurityChallenge(kind: 'otp' | 'email') {
+    const token = localStorage.getItem('voiceshield_access_token')
+    const value = kind === 'otp' ? otpCode : emailToken
+    const response = await fetch(`/api/auth/${kind}/verify`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token ?? ''}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(kind === 'otp' ? { code: value } : { token: value }),
+    })
+    const result: { verified?: boolean; error?: string } = await response.json()
+    setSecurityMessage(response.ok && result.verified ? `${kind === 'otp' ? 'OTP' : 'Email'} verification completed.` : result.error ?? 'Verification failed.')
   }
 
   return (
@@ -401,6 +458,28 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+          {user && window.location.pathname === '/dashboard/history' && (
+            <section className="mt-6 max-w-4xl rounded-2xl border border-rose-300/20 bg-rose-300/5 p-6">
+              <h2 className="text-lg font-semibold text-white">Alert history</h2>
+              <p className="mt-1 text-sm text-slate-300">Review suspicious and high-risk voice warnings.</p>
+              {alerts.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-400">No alerts recorded yet.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {alerts.map((entry) => (
+                    <article className="rounded-xl border border-white/10 bg-slate-950/30 p-4" key={entry.alert_id}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium text-white">{entry.title}</p>
+                        <time className="text-xs text-slate-400">{new Date(entry.created_at).toLocaleString()}</time>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">{entry.message}</p>
+                      <p className="mt-1 text-xs text-rose-200">{entry.classification} · Risk {entry.risk_score}%</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
           {user && window.location.pathname === '/dashboard/profile' && (
             <form className="mt-6 max-w-xl rounded-2xl border border-white/10 bg-white/5 p-6" onSubmit={saveProfile}>
               <label className="block text-sm text-slate-300">
@@ -417,6 +496,29 @@ export default function DashboardPage() {
                 {isSaving ? 'Saving...' : 'Save changes'}
               </button>
             </form>
+          )}
+          {user && window.location.pathname === '/dashboard/profile' && (
+            <section className="mt-6 max-w-xl rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-6">
+              <h2 className="text-lg font-semibold text-white">Multi-factor verification</h2>
+              <p className="mt-1 text-sm text-slate-300">Verify account ownership with a one-time passcode or email link.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-slate-950/30 p-4">
+                  <p className="font-medium text-white">OTP verification</p>
+                  <button className="mt-3 rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950" onClick={() => void requestSecurityChallenge('otp')} type="button">Send OTP</button>
+                  {devOtp && <p className="mt-2 text-xs text-amber-200">Development OTP: {devOtp}</p>}
+                  <input className="mt-3 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-sm text-white" inputMode="numeric" placeholder="6-digit code" value={otpCode} onChange={(event) => setOtpCode(event.target.value)} />
+                  <button className="mt-2 text-xs text-cyan-200 underline" onClick={() => void verifySecurityChallenge('otp')} type="button">Verify OTP</button>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-slate-950/30 p-4">
+                  <p className="font-medium text-white">Email verification</p>
+                  <button className="mt-3 rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950" onClick={() => void requestSecurityChallenge('email')} type="button">Send email</button>
+                  {devEmailToken && <p className="mt-2 break-all text-xs text-amber-200">Development token: {devEmailToken}</p>}
+                  <input className="mt-3 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-sm text-white" placeholder="Paste verification token" value={emailToken} onChange={(event) => setEmailToken(event.target.value)} />
+                  <button className="mt-2 text-xs text-cyan-200 underline" onClick={() => void verifySecurityChallenge('email')} type="button">Verify email</button>
+                </div>
+              </div>
+              {securityMessage && <p className="mt-4 text-sm text-emerald-300">{securityMessage}</p>}
+            </section>
           )}
         </main>
       </div>

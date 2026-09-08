@@ -451,3 +451,120 @@ test('live audio chunks receive real-time inference results', async () => {
   expect(body.riskScore).toBeGreaterThanOrEqual(0)
   expect(Date.now() - startedAt).toBeLessThan(3000)
 })
+
+test('high-risk detections show an alert and warning message', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('voiceshield_access_token', 'test-token')
+  })
+  await page.route('**/api/dashboard', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ user: { user_id: 'alert-user', name: 'Alert User', email: 'alert@example.com' } }),
+    })
+  })
+  await page.route('**/api/analysis/uploads', async (route) => {
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ job: { original_name: 'alert.wav', status: 'complete', mfcc: [], spectrogram: [] } }),
+    })
+  })
+  await page.route('**/api/detection/predict', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classification: 'AI Generated',
+        confidenceScore: 96,
+        riskScore: 88,
+        reasons: ['Synthetic artifacts detected.'],
+      }),
+    })
+  })
+
+  await page.goto('/dashboard/analysis')
+  await page.locator('input[type="file"]').last().setInputFiles({
+    name: 'alert.wav',
+    mimeType: 'audio/wav',
+    buffer: Buffer.from('audio'),
+  })
+  await page.getByRole('button', { name: 'Upload and analyze' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('High-risk voice detected')
+  await expect(page.getByRole('alert')).toContainText('88% risk')
+})
+
+test('alert history returns persisted high-risk warnings', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Alert History User', email, password }),
+  })
+
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const form = new FormData()
+  const syntheticAudio = new Uint8Array(128)
+  syntheticAudio.forEach((_value, index) => { syntheticAudio[index] = index % 2 === 0 ? 0 : 128 })
+  form.append('audio', new Blob([syntheticAudio], { type: 'audio/wav' }), 'alert-history.wav')
+  const detection = await fetch('http://localhost:5000/api/detection/predict', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+    body: form,
+  })
+  expect(detection.status).toBe(200)
+
+  const alerts = await fetch('http://localhost:5000/api/detection/alerts', {
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+  })
+  const alertBody = (await alerts.json()) as { entries: Array<{ title: string; risk_score: number }> }
+  expect(alerts.status).toBe(200)
+  expect(alertBody.entries.length).toBeGreaterThan(0)
+  expect(alertBody.entries[0].title).toContain('voice detected')
+})
+
+test('OTP and email verification challenges can be delivered and verified', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'MFA User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const headers = { Authorization: `Bearer ${loginBody.token}` }
+  const otpRequest = await fetch('http://localhost:5000/api/auth/otp/request', { method: 'POST', headers })
+  const otp = (await otpRequest.json()) as { developmentCode?: string }
+  expect(otpRequest.status).toBe(200)
+  expect(otp.developmentCode).toMatch(/^\d{6}$/)
+  const otpVerify = await fetch('http://localhost:5000/api/auth/otp/verify', {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: otp.developmentCode }),
+  })
+  expect(otpVerify.status).toBe(200)
+  expect((await otpVerify.json()).verified).toBe(true)
+  const emailRequest = await fetch('http://localhost:5000/api/auth/email/request', { method: 'POST', headers })
+  const emailChallenge = (await emailRequest.json()) as { developmentToken?: string }
+  expect(emailRequest.status).toBe(200)
+  expect(emailChallenge.developmentToken).toMatch(/^[a-f0-9]{64}$/)
+  const emailVerify = await fetch('http://localhost:5000/api/auth/email/verify', {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: emailChallenge.developmentToken }),
+  })
+  expect(emailVerify.status).toBe(200)
+  expect((await emailVerify.json()).verified).toBe(true)
+})

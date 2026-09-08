@@ -375,21 +375,21 @@ System returns:
 
 ## Threat Notifications
 
-- [ ] Detection alert popup
+- [x] Detection alert popup
 
 ### Acceptance Criteria
 - Alert shown for suspicious voices.
 
 ---
 
-- [ ] High-risk notification system
+- [x] High-risk notification system
 
 ### Acceptance Criteria
 - High-risk attacks generate warning.
 
 ---
 
-- [ ] Alert history
+- [x] Alert history
 
 ### Acceptance Criteria
 - Past alerts viewable.
@@ -400,7 +400,7 @@ System returns:
 
 ## Secondary Authentication
 
-- [ ] OTP verification
+- [x] OTP verification
 
 ### Acceptance Criteria
 - OTP delivered successfully.
@@ -408,7 +408,7 @@ System returns:
 
 ---
 
-- [ ] Email verification
+- [x] Email verification
 
 ### Acceptance Criteria
 - Verification email sent.
