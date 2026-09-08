@@ -416,7 +416,7 @@ System returns:
 
 ---
 
-- [ ] Security phrase challenge
+- [x] Security phrase challenge
 
 ### Acceptance Criteria
 - User speaks enrolled phrase.
@@ -428,35 +428,35 @@ System returns:
 
 ## Administration Features
 
-- [ ] Admin login
+- [x] Admin login
 
 ### Acceptance Criteria
 - Only admins can access panel.
 
 ---
 
-- [ ] User management
+- [x] User management
 
 ### Acceptance Criteria
 - Admin views all users.
 
 ---
 
-- [ ] Detection monitoring
+- [x] Detection monitoring
 
 ### Acceptance Criteria
 - Admin sees system-wide attacks.
 
 ---
 
-- [ ] System metrics dashboard
+- [x] System metrics dashboard
 
 ### Acceptance Criteria
 - Usage statistics displayed.
 
 ---
 
-- [ ] Report generation
+- [x] Report generation
 
 ### Acceptance Criteria
 - Reports downloadable.

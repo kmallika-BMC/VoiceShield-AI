@@ -21,5 +21,7 @@ export const config = {
   polygonRpcUrl: process.env.POLYGON_RPC_URL ?? '',
   polygonPrivateKey: process.env.POLYGON_PRIVATE_KEY ?? '',
   polygonContractAddress: process.env.POLYGON_CONTRACT_ADDRESS ?? '',
+  adminEmail: process.env.ADMIN_EMAIL ?? '',
+  adminPassword: process.env.ADMIN_PASSWORD ?? '',
   backendRoot,
 }

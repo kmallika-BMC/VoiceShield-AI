@@ -22,8 +22,12 @@ export async function getDb(): Promise<PGlite> {
       user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     CREATE TABLE IF NOT EXISTS voice_samples (
       sample_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -92,6 +96,14 @@ export async function getDb(): Promise<PGlite> {
       expires_at TIMESTAMPTZ NOT NULL,
       verified_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS security_phrases (
+      phrase_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+      phrase TEXT NOT NULL,
+      audio_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      verified_at TIMESTAMPTZ
     );
     CREATE TABLE IF NOT EXISTS blockchain_registrations (
       registration_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

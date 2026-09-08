@@ -4,10 +4,11 @@ import { config } from '../config.js'
 export type AuthenticatedUser = {
   userId: string
   email: string
+  role?: 'user' | 'admin'
 }
 
 export function createAccessToken(user: AuthenticatedUser): string {
-  return jwt.sign({ email: user.email }, config.jwtSecret, {
+  return jwt.sign({ email: user.email, role: user.role ?? 'user' }, config.jwtSecret, {
     subject: user.userId,
     expiresIn: '1h',
   })
@@ -24,5 +25,5 @@ export function verifyAccessToken(token: string): AuthenticatedUser {
     throw new Error('Invalid access token payload')
   }
 
-  return { userId: payload.sub, email: payload.email }
+  return { userId: payload.sub, email: payload.email, role: payload.role === 'admin' ? 'admin' : 'user' }
 }

@@ -93,6 +93,9 @@ export default function DashboardPage() {
   const [emailToken, setEmailToken] = useState('')
   const [devOtp, setDevOtp] = useState<string | null>(null)
   const [devEmailToken, setDevEmailToken] = useState<string | null>(null)
+  const [phrase, setPhrase] = useState('')
+  const [phraseAudio, setPhraseAudio] = useState<File | null>(null)
+  const [phraseMessage, setPhraseMessage] = useState<string | null>(null)
   const content = pageContent(window.location.pathname)
 
   useEffect(() => {
@@ -231,6 +234,33 @@ export default function DashboardPage() {
     })
     const result: { verified?: boolean; error?: string } = await response.json()
     setSecurityMessage(response.ok && result.verified ? `${kind === 'otp' ? 'OTP' : 'Email'} verification completed.` : result.error ?? 'Verification failed.')
+  }
+
+  async function submitPhraseChallenge(mode: 'enroll' | 'verify') {
+    if (mode === 'enroll' && !phrase.trim()) {
+      setError('Enter the security phrase before enrolling it.')
+      return
+    }
+    if (!phraseAudio) {
+      setError('Choose an audio recording of the security phrase.')
+      return
+    }
+    const body = new FormData()
+    body.append('audio', phraseAudio)
+    if (mode === 'enroll') body.append('phrase', phrase.trim())
+    const token = localStorage.getItem('voiceshield_access_token')
+    const response = await fetch(`/api/auth/phrase/${mode}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token ?? ''}` },
+      body,
+    })
+    const result: { enrolled?: boolean; verified?: boolean; phrase?: string; error?: string } = await response.json()
+    if (!response.ok) {
+      setError(result.error ?? 'Unable to process the security phrase.')
+      return
+    }
+    setPhraseMessage(mode === 'enroll' ? `Security phrase enrolled: “${result.phrase}”` : 'Security phrase verified successfully.')
+    setError(null)
   }
 
   return (
@@ -518,6 +548,17 @@ export default function DashboardPage() {
                 </div>
               </div>
               {securityMessage && <p className="mt-4 text-sm text-emerald-300">{securityMessage}</p>}
+              <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/30 p-4">
+                <p className="font-medium text-white">Security phrase challenge</p>
+                <p className="mt-1 text-xs text-slate-400">Record a phrase once, then submit the same recording to verify it.</p>
+                <input className="mt-3 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-sm text-white" placeholder="Example: VoiceShield protects my voice" value={phrase} onChange={(event) => setPhrase(event.target.value)} />
+                <input className="mt-3 block w-full text-xs text-slate-300" accept="audio/wav,audio/mpeg,audio/mp4,audio/webm" onChange={(event) => setPhraseAudio(event.target.files?.[0] ?? null)} type="file" />
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <button className="rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950" onClick={() => void submitPhraseChallenge('enroll')} type="button">Enroll phrase</button>
+                  <button className="rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-200" onClick={() => void submitPhraseChallenge('verify')} type="button">Verify phrase</button>
+                </div>
+                {phraseMessage && <p className="mt-3 text-xs text-emerald-300">{phraseMessage}</p>}
+              </div>
             </section>
           )}
         </main>

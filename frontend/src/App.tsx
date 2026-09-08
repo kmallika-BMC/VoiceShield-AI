@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import DashboardPage from './DashboardPage'
+import AdminPage from './AdminPage'
 
 function LoginPage() {
   const apiUrl = import.meta.env.VITE_API_URL || ''
@@ -33,6 +34,7 @@ function LoginPage() {
     } finally {
       setIsSubmitting(false)
     }
+
   }
 
   return (
@@ -60,9 +62,27 @@ function LoginPage() {
         <a className="mt-3 block text-sm text-slate-400 hover:text-white" href="/register">
           Need an account? Create one
         </a>
+        <a className="mt-3 block text-sm text-slate-400 hover:text-white" href="/admin/login">
+          Administrator login
+        </a>
       </div>
     </div>
   )
+}
+
+function AdminLoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const response = await fetch('/api/auth/admin-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+    const result: { token?: string; error?: string } = await response.json()
+    if (!response.ok || !result.token) { setError(result.error ?? 'Administrator login failed.'); return }
+    localStorage.setItem('voiceshield_access_token', result.token)
+    window.location.href = '/admin'
+  }
+  return <div className="grid min-h-svh place-items-center bg-[#070b14] px-6 text-slate-100"><form className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-white/5 p-8" onSubmit={handleSubmit}><h1 className="text-2xl font-semibold text-white">Administrator login</h1><input className="w-full rounded-lg bg-slate-950/60 p-3" placeholder="Admin email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} /><input className="w-full rounded-lg bg-slate-950/60 p-3" placeholder="Admin password" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />{error && <p className="text-sm text-rose-300">{error}</p>}<button className="w-full rounded-lg bg-cyan-400 px-4 py-3 font-semibold text-slate-950" type="submit">Sign in as admin</button><a className="block text-sm text-cyan-300" href="/login">Regular user login</a></form></div>
 }
 
 function RegistrationPage() {
@@ -320,7 +340,9 @@ function HomePage() {
 export default function App() {
   const path = window.location.pathname
   if (path === '/login') return <LoginPage />
+  if (path === '/admin/login') return <AdminLoginPage />
   if (path === '/register') return <RegistrationPage />
+  if (path === '/admin') return <AdminPage />
   if (path === '/dashboard' || path.startsWith('/dashboard/')) return <DashboardPage />
   return <HomePage />
 }

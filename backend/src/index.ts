@@ -8,6 +8,7 @@ import { profileRouter } from './routes/profile.js'
 import { voiceRouter } from './routes/voice.js'
 import { analysisRouter } from './routes/analysis.js'
 import { detectionRouter } from './routes/detection.js'
+import { adminRouter } from './routes/admin.js'
 
 const app = express()
 
@@ -19,6 +20,7 @@ app.use('/api/profile', profileRouter)
 app.use('/api/voice', voiceRouter)
 app.use('/api/analysis', analysisRouter)
 app.use('/api/detection', detectionRouter)
+app.use('/api/admin', adminRouter)
 
 app.get('/api/health', async (_req, res) => {
   const databaseConnected = await pingDatabase()

@@ -568,3 +568,60 @@ test('OTP and email verification challenges can be delivered and verified', asyn
   expect(emailVerify.status).toBe(200)
   expect((await emailVerify.json()).verified).toBe(true)
 })
+
+test('security phrase can be enrolled and verified from an audio recording', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Phrase User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const headers = { Authorization: `Bearer ${loginBody.token}` }
+  const audio = new Blob([Buffer.from('voice phrase recording')], { type: 'audio/wav' })
+  const enrollmentBody = new FormData()
+  enrollmentBody.append('phrase', 'VoiceShield protects my voice')
+  enrollmentBody.append('audio', audio, 'phrase.wav')
+  const enrollment = await fetch('http://localhost:5000/api/auth/phrase/enroll', {
+    method: 'POST',
+    headers,
+    body: enrollmentBody,
+  })
+  expect(enrollment.status).toBe(201)
+  expect((await enrollment.json()).enrolled).toBe(true)
+  const verificationBody = new FormData()
+  verificationBody.append('audio', audio, 'phrase.wav')
+  const verification = await fetch('http://localhost:5000/api/auth/phrase/verify', {
+    method: 'POST',
+    headers,
+    body: verificationBody,
+  })
+  expect(verification.status).toBe(200)
+  expect((await verification.json()).verified).toBe(true)
+})
+
+test('regular users cannot access the admin user-management endpoint', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Regular User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const response = await fetch('http://localhost:5000/api/admin/users', {
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+  })
+  expect(response.status).toBe(403)
+})
