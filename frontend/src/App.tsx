@@ -281,6 +281,21 @@ export default function App() {
             </article>
           ))}
         </section>
+        <section className="mt-8 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-6">
+          <h2 className="text-lg font-semibold text-white">Try the working features</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            Create an account or sign in to open the protected workspace. From there you can record
+            voice samples, analyze audio, and review filtered detection history.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a className="rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950" href="/register">
+              Create an account
+            </a>
+            <a className="rounded-lg border border-white/15 px-4 py-2.5 text-sm text-white" href="/login">
+              Sign in to dashboard
+            </a>
+          </div>
+        </section>
       </main>
     </div>
   )

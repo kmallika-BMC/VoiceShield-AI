@@ -256,14 +256,14 @@ System returns:
 
 ## Historical Records
 
-- [ ] Detection log storage
+- [x] Detection log storage
 
 ### Acceptance Criteria
 - Every analysis stored in database.
 
 ---
 
-- [ ] Detection history page
+- [x] Detection history page
 
 ### Acceptance Criteria
 - User sees previous analyses.
@@ -271,7 +271,7 @@ System returns:
 
 ---
 
-- [ ] Search and filter logs
+- [x] Search and filter logs
 
 ### Acceptance Criteria
 - Filter by date.
@@ -283,28 +283,28 @@ System returns:
 
 ## Analytics
 
-- [ ] Total samples analyzed
+- [x] Total samples analyzed
 
 ### Acceptance Criteria
 - Counter updates automatically.
 
 ---
 
-- [ ] Genuine vs suspicious chart
+- [x] Genuine vs suspicious chart
 
 ### Acceptance Criteria
 - Graph displays correct data.
 
 ---
 
-- [ ] Risk trend visualization
+- [x] Risk trend visualization
 
 ### Acceptance Criteria
 - Historical trends visible.
 
 ---
 
-- [ ] Attack statistics page
+- [x] Attack statistics page
 
 ### Acceptance Criteria
 - Dashboard displays attack frequency.

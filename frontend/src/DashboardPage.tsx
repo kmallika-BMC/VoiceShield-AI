@@ -3,9 +3,23 @@ import VoiceEnrollment from './VoiceEnrollment'
 import AudioAnalysis from './AudioAnalysis'
 
 type DashboardUser = { user_id: string; name: string; email: string }
+type DetectionLog = {
+  detection_id: string
+  original_name: string
+  classification: string
+  confidence_score: number
+  risk_score: number
+  created_at: string
+}
+type DetectionStats = {
+  total: number
+  classifications: Record<'Genuine' | 'Suspicious' | 'AI Generated', number>
+  riskTrend: Array<{ day: string; averageRisk: number; detections: number }>
+}
 
 const navigation = [
   { label: 'Overview', href: '/dashboard' },
+  { label: 'Statistics', href: '/dashboard/stats' },
   { label: 'Voice analysis', href: '/dashboard/analysis' },
   { label: 'Detection history', href: '/dashboard/history' },
   { label: 'Profile', href: '/dashboard/profile' },
@@ -25,6 +39,13 @@ function pageContent(path: string) {
       title: 'Detection history',
       description: 'Review your recent voice verification and detection activity.',
       action: 'No detections yet',
+    }
+    if (path === '/dashboard/stats') {
+      return {
+        title: 'Attack statistics',
+        description: 'Review attack frequency and risk patterns across your detections.',
+        action: 'Statistics ready',
+      }
     }
 
   }
@@ -50,6 +71,13 @@ export default function DashboardPage() {
   const [name, setName] = useState('')
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [history, setHistory] = useState<DetectionLog[]>([])
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyPages, setHistoryPages] = useState(1)
+  const [historyClassification, setHistoryClassification] = useState('All')
+  const [historyDateFrom, setHistoryDateFrom] = useState('')
+  const [historyDateTo, setHistoryDateTo] = useState('')
+  const [stats, setStats] = useState<DetectionStats | null>(null)
   const content = pageContent(window.location.pathname)
 
   useEffect(() => {
@@ -72,6 +100,39 @@ export default function DashboardPage() {
         setError(reason instanceof Error ? reason.message : 'Unable to load dashboard.')
       })
   }, [])
+
+  useEffect(() => {
+    if (window.location.pathname !== '/dashboard' && window.location.pathname !== '/dashboard/stats') return
+    const token = localStorage.getItem('voiceshield_access_token')
+    if (!token) return
+    fetch('/api/detection/stats', { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const result: DetectionStats & { error?: string } = await response.json()
+        if (!response.ok) throw new Error(result.error ?? 'Unable to load statistics.')
+        setStats(result)
+      })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load statistics.'))
+  }, [])
+
+  useEffect(() => {
+    if (window.location.pathname !== '/dashboard/history') return
+    const token = localStorage.getItem('voiceshield_access_token')
+    if (!token) return
+    const params = new URLSearchParams({ page: String(historyPage) })
+    if (historyClassification !== 'All') params.set('classification', historyClassification)
+    if (historyDateFrom) params.set('dateFrom', historyDateFrom)
+    if (historyDateTo) params.set('dateTo', historyDateTo)
+    fetch(`/api/detection/history?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        const result: { entries?: DetectionLog[]; totalPages?: number; error?: string } = await response.json()
+        if (!response.ok || !result.entries) throw new Error(result.error ?? 'Unable to load detection history.')
+        setHistory(result.entries)
+        setHistoryPages(result.totalPages ?? 1)
+      })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load detection history.'))
+  }, [historyClassification, historyDateFrom, historyDateTo, historyPage])
 
   function signOut() {
     localStorage.removeItem('voiceshield_access_token')
@@ -188,8 +249,141 @@ export default function DashboardPage() {
               </article>
             </section>
           )}
+          {user && window.location.pathname === '/dashboard' && (
+            <section className="mt-6 grid gap-4 sm:grid-cols-3">
+              <a className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-5 hover:bg-cyan-300/10" href="/dashboard/analysis">
+                <p className="text-sm font-semibold text-cyan-200">Voice enrollment and analysis</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">Record microphone samples, upload audio, and view detection results.</p>
+              </a>
+              <a className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10" href="/dashboard/history">
+                <p className="text-sm font-semibold text-white">Detection history</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">Review saved results with prediction and date filters.</p>
+              </a>
+              <a className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10" href="/dashboard/profile">
+                <p className="text-sm font-semibold text-white">Profile</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">Manage the account used for protected voice data.</p>
+              </a>
+            </section>
+          )}
+          {user && window.location.pathname === '/dashboard' && stats && (
+            <section className="mt-6 grid gap-4 lg:grid-cols-3">
+              <article className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-5">
+                <p className="text-sm text-slate-300">Total samples analyzed</p>
+                <p className="mt-3 text-4xl font-semibold text-white">{stats.total}</p>
+                <p className="mt-2 text-xs text-slate-400">Updates after each completed detection.</p>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-2">
+                <p className="text-sm font-semibold text-white">Genuine vs suspicious results</p>
+                <div className="mt-4 space-y-4">
+                  {(['Genuine', 'Suspicious', 'AI Generated'] as const).map((label) => {
+                    const count = stats.classifications[label]
+                    const percentage = stats.total ? Math.round((count / stats.total) * 100) : 0
+                    const color = label === 'Genuine' ? 'bg-emerald-300' : label === 'Suspicious' ? 'bg-amber-300' : 'bg-rose-300'
+                    return (
+                      <div key={label}>
+                        <div className="flex justify-between text-xs text-slate-300">
+                          <span>{label}</span><span>{count} ({percentage}%)</span>
+                        </div>
+                        <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-900/70">
+                          <div className={`h-full rounded-full ${color}`} style={{ width: `${percentage}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-3">
+                <p className="text-sm font-semibold text-white">Risk trend</p>
+                {stats.riskTrend.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-400">Complete a detection to start the trend.</p>
+                ) : (
+                  <div className="mt-4 flex min-h-36 items-end gap-2 overflow-x-auto">
+                    {stats.riskTrend.map((point) => (
+                      <div className="flex min-w-12 flex-col items-center gap-2" key={point.day}>
+                        <span className="text-xs text-slate-300">{point.averageRisk}%</span>
+                        <div className="flex h-24 items-end">
+                          <div className="w-8 rounded-t bg-cyan-300" style={{ height: `${Math.max(point.averageRisk, 4)}%` }} title={`${point.detections} detection(s)`} />
+                        </div>
+                        <span className="text-[10px] text-slate-500">{point.day.slice(5)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+            </section>
+          )}
+          {user && window.location.pathname === '/dashboard/stats' && stats && (
+            <section className="mt-6 grid gap-4 lg:grid-cols-3">
+              <article className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-5">
+                <p className="text-sm text-slate-300">Attack events</p>
+                <p className="mt-3 text-4xl font-semibold text-white">
+                  {stats.classifications.Suspicious + stats.classifications['AI Generated']}
+                </p>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-2">
+                <p className="text-sm font-semibold text-white">Attack frequency by classification</p>
+                <div className="mt-4 space-y-3">
+                  {(['Suspicious', 'AI Generated'] as const).map((label) => (
+                    <div className="flex items-center justify-between rounded-lg bg-slate-950/30 p-3" key={label}>
+                      <span className="text-sm text-slate-200">{label}</span>
+                      <span className="text-sm font-semibold text-rose-200">{stats.classifications[label]}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+          )}
           {user && window.location.pathname === '/dashboard/analysis' && <VoiceEnrollment />}
           {user && window.location.pathname === '/dashboard/analysis' && <AudioAnalysis />}
+          {user && window.location.pathname === '/dashboard/history' && (
+            <section className="mt-6 max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-6">
+              <h2 className="text-lg font-semibold text-white">Detection history</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <label className="text-sm text-slate-300">
+                  Prediction
+                  <select
+                    className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-white"
+                    value={historyClassification}
+                    onChange={(event) => { setHistoryClassification(event.target.value); setHistoryPage(1) }}
+                  >
+                    <option>All</option>
+                    <option>Genuine</option>
+                    <option>Suspicious</option>
+                    <option>AI Generated</option>
+                  </select>
+                </label>
+                <label className="text-sm text-slate-300">
+                  From date
+                  <input className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-white" type="date" value={historyDateFrom} onChange={(event) => { setHistoryDateFrom(event.target.value); setHistoryPage(1) }} />
+                </label>
+                <label className="text-sm text-slate-300">
+                  To date
+                  <input className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2 text-white" type="date" value={historyDateTo} onChange={(event) => { setHistoryDateTo(event.target.value); setHistoryPage(1) }} />
+                </label>
+              </div>
+              {history.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-400">No detections recorded yet.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {history.map((entry) => (
+                    <article className="rounded-xl border border-white/10 bg-slate-950/30 p-4" key={entry.detection_id}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium text-white">{entry.original_name}</p>
+                        <time className="text-xs text-slate-400">{new Date(entry.created_at).toLocaleString()}</time>
+                      </div>
+                      <p className="mt-2 text-sm text-cyan-200">{entry.classification}</p>
+                      <p className="mt-1 text-xs text-slate-400">Confidence {entry.confidence_score}% · Risk {entry.risk_score}%</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+              <div className="mt-5 flex items-center justify-between text-sm">
+                <button className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 disabled:opacity-40" disabled={historyPage <= 1} onClick={() => setHistoryPage((page) => page - 1)} type="button">Previous</button>
+                <span className="text-slate-400">Page {historyPage} of {historyPages}</span>
+                <button className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 disabled:opacity-40" disabled={historyPage >= historyPages} onClick={() => setHistoryPage((page) => page + 1)} type="button">Next</button>
+              </div>
+            </section>
+          )}
           {user && window.location.pathname === '/dashboard/profile' && (
             <form className="mt-6 max-w-xl rounded-2xl border border-white/10 bg-white/5 p-6" onSubmit={saveProfile}>
               <label className="block text-sm text-slate-300">

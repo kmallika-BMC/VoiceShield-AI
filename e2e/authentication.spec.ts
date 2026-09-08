@@ -105,6 +105,67 @@ test('dashboard sidebar navigates between protected sections', async ({ page }) 
   await expect(page.getByText('Analyze live audio and recordings')).toBeVisible()
 })
 
+test('dashboard displays statistics and risk trend visualizations', async ({ page }) => {
+  await page.route('**/api/dashboard', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ user: { user_id: 'stats-user', name: 'Stats User', email: 'stats@example.com' } }),
+    })
+  })
+  await page.route('**/api/detection/stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total: 5,
+        classifications: { Genuine: 2, Suspicious: 1, 'AI Generated': 2 },
+        riskTrend: [{ day: '2026-09-08', averageRisk: 72, detections: 2 }],
+      }),
+    })
+  })
+  await page.addInitScript(() => localStorage.setItem('voiceshield_access_token', 'test-token'))
+  await page.goto('/dashboard')
+
+  await expect(page.getByText('Total samples analyzed')).toBeVisible()
+  await expect(page.getByText('Genuine vs suspicious results')).toBeVisible()
+  await expect(page.getByText('Risk trend')).toBeVisible()
+  await expect(page.getByText('72%')).toBeVisible()
+
+  await page.getByRole('navigation', { name: 'Dashboard navigation' }).getByRole('link', { name: 'Statistics' }).click()
+  await expect(page).toHaveURL(/\/dashboard\/stats$/)
+  await expect(page.getByText('Attack events')).toBeVisible()
+  await expect(page.getByText('Attack frequency by classification')).toBeVisible()
+})
+
+test('history page exposes prediction and date filters', async ({ page }) => {
+  await page.route('**/api/dashboard', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ user: { user_id: 'history-user', name: 'History User', email: 'history@example.com' } }),
+    })
+  })
+  await page.route('**/api/detection/history**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ entries: [], totalPages: 1, total: 0 }),
+    })
+  })
+  await page.addInitScript(() => localStorage.setItem('voiceshield_access_token', 'test-token'))
+  await page.goto('/dashboard/history')
+
+  await expect(page.getByRole('heading', { name: 'Detection history' }).last()).toBeVisible()
+  await expect(page.getByLabel('Prediction')).toHaveValue('All')
+  await expect(page.getByLabel('From date')).toBeVisible()
+  await expect(page.getByLabel('To date')).toBeVisible()
+  await page.getByLabel('Prediction').selectOption('Suspicious')
+  await page.getByLabel('From date').fill('2026-09-01')
+  await page.getByLabel('To date').fill('2026-09-08')
+  await expect(page.getByLabel('Prediction')).toHaveValue('Suspicious')
+})
+
 test('user can update profile name and see the persisted value', async ({ page }) => {
   const email = uniqueEmail()
   await page.goto('/register')
@@ -120,7 +181,7 @@ test('user can update profile name and see the persisted value', async ({ page }
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
 
-  await page.getByRole('link', { name: 'Profile' }).click()
+  await page.getByRole('link', { name: 'Profile', exact: true }).click()
   await expect(page).toHaveURL(/\/dashboard\/profile$/)
   await page.getByLabel('Display name').fill('Updated Profile Name')
   await page.getByRole('button', { name: 'Save changes' }).click()
@@ -241,4 +302,40 @@ test('audio detection returns a model prediction for an authenticated user', asy
   expect(body.riskScore).toBeGreaterThanOrEqual(0)
   expect(body.riskScore).toBeLessThanOrEqual(100)
   expect(body.reasons.length).toBeGreaterThan(0)
+
+  const history = await fetch('http://localhost:5000/api/detection/history', {
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+  })
+  const historyBody = (await history.json()) as {
+    entries: Array<{ original_name: string; classification: string }>
+    total: number
+    totalPages: number
+  }
+  expect(history.status).toBe(200)
+  expect(historyBody.total).toBeGreaterThan(0)
+  expect(historyBody.totalPages).toBeGreaterThanOrEqual(1)
+  expect(historyBody.entries.some((entry) => entry.original_name === 'detection.wav')).toBe(true)
+
+  const filteredHistory = await fetch(
+    'http://localhost:5000/api/detection/history?classification=Genuine&dateFrom=2020-01-01&dateTo=2099-12-31',
+    { headers: { Authorization: 'Bearer ' + loginBody.token } },
+  )
+  const filteredBody = (await filteredHistory.json()) as {
+    entries: Array<{ classification: string }>
+  }
+  expect(filteredHistory.status).toBe(200)
+  expect(filteredBody.entries.every((entry) => entry.classification === 'Genuine')).toBe(true)
+
+  const stats = await fetch('http://localhost:5000/api/detection/stats', {
+    headers: { Authorization: 'Bearer ' + loginBody.token },
+  })
+  const statsBody = (await stats.json()) as {
+    total: number
+    classifications: Record<string, number>
+    riskTrend: Array<{ averageRisk: number }>
+  }
+  expect(stats.status).toBe(200)
+  expect(statsBody.total).toBeGreaterThanOrEqual(1)
+  expect(statsBody.classifications[body.classification]).toBeGreaterThanOrEqual(1)
+  expect(statsBody.riskTrend.length).toBeGreaterThan(0)
 })

@@ -55,6 +55,17 @@ export async function getDb(): Promise<PGlite> {
     ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS normalized_path TEXT;
     ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS mfcc JSONB;
     ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS spectrogram JSONB;
+    CREATE TABLE IF NOT EXISTS detection_logs (
+      detection_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+      original_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      classification TEXT NOT NULL,
+      confidence_score INTEGER NOT NULL,
+      risk_score INTEGER NOT NULL,
+      reasons JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `)
 
   return db
