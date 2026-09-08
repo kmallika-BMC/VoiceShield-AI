@@ -66,6 +66,14 @@ export async function getDb(): Promise<PGlite> {
       reasons JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS blockchain_registrations (
+      registration_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+      fingerprint_hash TEXT NOT NULL,
+      transaction_hash TEXT UNIQUE NOT NULL,
+      network TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `)
 
   return db

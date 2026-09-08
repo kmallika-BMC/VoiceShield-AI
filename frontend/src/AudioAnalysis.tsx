@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+type LiveDetection = {
+  prediction: string
+  confidenceScore: number
+  riskScore: number
+}
 
 export default function AudioAnalysis() {
   const [file, setFile] = useState<File | null>(null)
@@ -9,6 +15,80 @@ export default function AudioAnalysis() {
   const [confidenceScore, setConfidenceScore] = useState<number | null>(null)
   const [riskScore, setRiskScore] = useState<number | null>(null)
   const [reasons, setReasons] = useState<string[]>([])
+  const [liveRecording, setLiveRecording] = useState(false)
+  const [liveResult, setLiveResult] = useState<LiveDetection | null>(null)
+  const [liveLatency, setLiveLatency] = useState<number | null>(null)
+  const liveRecorder = useRef<MediaRecorder | null>(null)
+  const liveStream = useRef<MediaStream | null>(null)
+
+  useEffect(() => () => {
+    liveRecorder.current?.stop()
+    liveStream.current?.getTracks().forEach((track) => track.stop())
+  }, [])
+
+  async function analyzeLiveChunk(chunk: Blob) {
+    const form = new FormData()
+    form.append('audio', new File([chunk], 'live-chunk.webm', { type: chunk.type || 'audio/webm' }))
+    const startedAt = performance.now()
+    const response = await fetch('/api/detection/live', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('voiceshield_access_token') ?? ''}` },
+      body: form,
+    })
+    const result = (await response.json()) as Partial<LiveDetection> & { error?: string }
+    if (
+      !response.ok ||
+      !result.prediction ||
+      result.confidenceScore === undefined ||
+      result.riskScore === undefined
+    ) {
+      throw new Error(result.error ?? 'Unable to analyze live audio.')
+    }
+    setLiveResult({
+      prediction: result.prediction,
+      confidenceScore: result.confidenceScore,
+      riskScore: result.riskScore,
+    })
+    setLiveLatency(Math.round(performance.now() - startedAt))
+  }
+
+  async function startLiveAnalysis() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setError('Live microphone analysis is not supported by this browser.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          analyzeLiveChunk(event.data).catch((reason: unknown) => {
+            setError(reason instanceof Error ? reason.message : 'Unable to analyze live audio.')
+          })
+        }
+      }
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop())
+        liveStream.current = null
+        liveRecorder.current = null
+      }
+      liveStream.current = stream
+      liveRecorder.current = recorder
+      recorder.start(1000)
+      setLiveRecording(true)
+      setLiveResult(null)
+      setLiveLatency(null)
+      setError(null)
+    } catch {
+      setError('Microphone access was denied.')
+    }
+  }
+
+  function stopLiveAnalysis() {
+    liveRecorder.current?.stop()
+    liveStream.current?.getTracks().forEach((track) => track.stop())
+    setLiveRecording(false)
+  }
 
   function riskDetails(score: number) {
     if (score >= 70) {
@@ -113,6 +193,31 @@ export default function AudioAnalysis() {
       >
         {uploading ? 'Uploading...' : 'Upload and analyze'}
       </button>
+      <div className="mt-6 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4">
+        <p className="text-sm font-semibold text-white">Live microphone analysis</p>
+        <p className="mt-1 text-sm text-slate-300">Streams one-second microphone chunks for immediate inference.</p>
+        <button
+          className="mt-3 rounded-lg border border-cyan-300/30 px-4 py-2 text-sm text-cyan-100"
+          onClick={liveRecording ? stopLiveAnalysis : startLiveAnalysis}
+          type="button"
+        >
+          {liveRecording ? 'Stop live analysis' : 'Start live analysis'}
+        </button>
+        {liveRecording && <p className="mt-3 text-xs text-cyan-200">Listening and updating prediction...</p>}
+        {liveResult && (
+          <div aria-label="Live detection result" className="mt-3 rounded-lg border border-white/10 bg-slate-950/30 p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-400">Current live prediction</p>
+            <p className="mt-1 text-lg font-semibold text-emerald-300">{liveResult.prediction}</p>
+            <p className="mt-1 text-xs text-slate-300">
+              Confidence {liveResult.confidenceScore}% · Risk {liveResult.riskScore}%
+            </p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-900/70">
+              <div className="h-full rounded-full bg-cyan-300" style={{ width: `${liveResult.riskScore}%` }} />
+            </div>
+          </div>
+        )}
+        {liveLatency !== null && <p className="mt-1 text-xs text-slate-400">Inference response: {liveLatency} ms</p>}
+      </div>
       {status && <p className="mt-4 text-sm text-emerald-300">{status}</p>}
       {prediction && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2" aria-label="Detection results">

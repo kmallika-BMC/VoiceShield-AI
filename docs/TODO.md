@@ -315,14 +315,14 @@ System returns:
 
 ## Smart Contracts
 
-- [ ] Create Polygon smart contract
+- [x] Create Polygon smart contract
 
 ### Acceptance Criteria
 - Contract deploys successfully.
 
 ---
 
-- [ ] Register voice fingerprint hash
+- [x] Register voice fingerprint hash
 
 ### Acceptance Criteria
 - Hash stored on blockchain.
@@ -330,7 +330,7 @@ System returns:
 
 ---
 
-- [ ] Verify fingerprint
+- [x] Verify fingerprint
 
 ### Acceptance Criteria
 - Blockchain comparison works.
@@ -338,7 +338,7 @@ System returns:
 
 ---
 
-- [ ] Blockchain audit log
+- [x] Blockchain audit log
 
 ### Acceptance Criteria
 - Verification history accessible.
@@ -349,21 +349,21 @@ System returns:
 
 ## Live Microphone Analysis
 
-- [ ] Live audio streaming
+- [x] Live audio streaming
 
 ### Acceptance Criteria
 - Audio stream reaches backend.
 
 ---
 
-- [ ] Real-time inference
+- [x] Real-time inference
 
 ### Acceptance Criteria
 - AI processes audio within 3 seconds.
 
 ---
 
-- [ ] Live detection display
+- [x] Live detection display
 
 ### Acceptance Criteria
 - Dashboard updates automatically.

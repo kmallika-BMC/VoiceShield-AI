@@ -6,6 +6,7 @@ import multer from 'multer'
 import { getDb } from '../db.js'
 import { requireAuth } from '../middleware/require-auth.js'
 import { config } from '../config.js'
+import { getFingerprintAuditLog, registerFingerprint, verifyFingerprint } from '../blockchain/registry.js'
 
 const allowedTypes = new Set([
   'audio/wav',
@@ -61,6 +62,41 @@ voiceRouter.post('/samples', requireAuth, upload.array('samples', 5), async (req
     )
 
     res.status(201).json({ samples, fingerprint: enrollmentFingerprint })
+  } catch (error) {
+    next(error)
+  }
+})
+
+voiceRouter.post('/fingerprint/register', requireAuth, async (req, res, next) => {
+  try {
+    const fingerprint = typeof req.body?.fingerprint === 'string' ? req.body.fingerprint.trim().toLowerCase() : ''
+    if (!fingerprint) {
+      res.status(400).json({ error: 'Fingerprint is required.' })
+      return
+    }
+    const result = await registerFingerprint(fingerprint, req.user!.userId)
+    res.status(201).json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
+voiceRouter.post('/fingerprint/verify', requireAuth, async (req, res, next) => {
+  try {
+    const fingerprint = typeof req.body?.fingerprint === 'string' ? req.body.fingerprint.trim().toLowerCase() : ''
+    if (!fingerprint) {
+      res.status(400).json({ error: 'Fingerprint is required.' })
+      return
+    }
+    res.status(200).json(await verifyFingerprint(fingerprint, req.user!.userId))
+  } catch (error) {
+    next(error)
+  }
+})
+
+voiceRouter.get('/fingerprint/audit', requireAuth, async (req, res, next) => {
+  try {
+    res.status(200).json({ entries: await getFingerprintAuditLog(req.user!.userId) })
   } catch (error) {
     next(error)
   }

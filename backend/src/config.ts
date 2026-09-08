@@ -18,5 +18,8 @@ export const config = {
   corsOrigin: required('CORS_ORIGIN'),
   databasePath: required('DATABASE_PATH'),
   jwtSecret: required('JWT_SECRET'),
+  polygonRpcUrl: process.env.POLYGON_RPC_URL ?? '',
+  polygonPrivateKey: process.env.POLYGON_PRIVATE_KEY ?? '',
+  polygonContractAddress: process.env.POLYGON_CONTRACT_ADDRESS ?? '',
   backendRoot,
 }

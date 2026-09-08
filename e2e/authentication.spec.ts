@@ -232,6 +232,80 @@ test('voice samples are stored and assigned an enrollment fingerprint', async ({
   expect(body.fingerprint).toMatch(/^[a-f0-9]{64}$/)
 })
 
+test('voice fingerprint can be registered on the local blockchain ledger', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Blockchain API User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const fingerprint = 'a'.repeat(64)
+  const response = await fetch('http://localhost:5000/api/voice/fingerprint/register', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${loginBody.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fingerprint }),
+  })
+  const body = (await response.json()) as { transactionHash?: string; network?: string }
+
+  expect(response.status).toBe(201)
+  expect(body.network).toBe('local')
+  expect(body.transactionHash).toMatch(/^0x[a-f0-9]{64}$/)
+})
+
+test('voice fingerprint verification and audit log expose registration status', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Verification API User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const headers = {
+    Authorization: `Bearer ${loginBody.token}`,
+    'Content-Type': 'application/json',
+  }
+  const fingerprint = 'b'.repeat(64)
+  const registration = await fetch('http://localhost:5000/api/voice/fingerprint/register', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ fingerprint }),
+  })
+  expect(registration.status).toBe(201)
+
+  const verification = await fetch('http://localhost:5000/api/voice/fingerprint/verify', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ fingerprint }),
+  })
+  const verificationBody = (await verification.json()) as { verified?: boolean; network?: string }
+  expect(verification.status).toBe(200)
+  expect(verificationBody.verified).toBe(true)
+  expect(verificationBody.network).toBe('local')
+
+  const audit = await fetch('http://localhost:5000/api/voice/fingerprint/audit', {
+    headers: { Authorization: headers.Authorization },
+  })
+  const auditBody = (await audit.json()) as { entries: Array<{ fingerprint_hash: string }> }
+  expect(audit.status).toBe(200)
+  expect(auditBody.entries.some((entry) => entry.fingerprint_hash === fingerprint)).toBe(true)
+})
+
 test('audio upload starts a protected processing job', async () => {
   const email = uniqueEmail()
   const password = 'secure-password-123'
@@ -271,6 +345,7 @@ test('audio detection returns a model prediction for an authenticated user', asy
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Detection API User', email, password }),
   })
+
   const login = await fetch('http://localhost:5000/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -338,4 +413,41 @@ test('audio detection returns a model prediction for an authenticated user', asy
   expect(statsBody.total).toBeGreaterThanOrEqual(1)
   expect(statsBody.classifications[body.classification]).toBeGreaterThanOrEqual(1)
   expect(statsBody.riskTrend.length).toBeGreaterThan(0)
+})
+
+test('live audio chunks receive real-time inference results', async () => {
+  const email = uniqueEmail()
+  const password = 'secure-password-123'
+  await fetch('http://localhost:5000/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Live API User', email, password }),
+  })
+  const login = await fetch('http://localhost:5000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const loginBody = (await login.json()) as { token: string }
+  const form = new FormData()
+  form.append('audio', new Blob(['live-audio-chunk'], { type: 'audio/webm' }), 'live-chunk.webm')
+  const startedAt = Date.now()
+  const response = await fetch('http://localhost:5000/api/detection/live', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.token}` },
+    body: form,
+  })
+  const body = (await response.json()) as {
+    prediction?: string
+    modelLoaded?: boolean
+    confidenceScore?: number
+    riskScore?: number
+  }
+
+  expect(response.status).toBe(200)
+  expect(body.modelLoaded).toBe(true)
+  expect(['Genuine', 'Suspicious', 'AI Generated']).toContain(body.prediction)
+  expect(body.confidenceScore).toBeGreaterThanOrEqual(0)
+  expect(body.riskScore).toBeGreaterThanOrEqual(0)
+  expect(Date.now() - startedAt).toBeLessThan(3000)
 })

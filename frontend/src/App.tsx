@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import DashboardPage from './DashboardPage'
 
 function LoginPage() {
-  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+  const apiUrl = import.meta.env.VITE_API_URL || ''
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -57,13 +57,16 @@ function LoginPage() {
         <a className="mt-6 inline-block text-sm font-semibold text-cyan-300" href="/">
           Back to home
         </a>
+        <a className="mt-3 block text-sm text-slate-400 hover:text-white" href="/register">
+          Need an account? Create one
+        </a>
       </div>
     </div>
   )
 }
 
 function RegistrationPage() {
-  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+  const apiUrl = import.meta.env.VITE_API_URL || ''
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -153,6 +156,9 @@ function RegistrationPage() {
         <a className="mt-6 inline-block text-sm font-semibold text-cyan-300" href="/">
           Back to home
         </a>
+        <a className="mt-3 block text-sm text-slate-400 hover:text-white" href="/login">
+          Already registered? Sign in
+        </a>
       </div>
     </div>
   )
@@ -173,19 +179,23 @@ const features = [
   },
 ]
 
-export default function App() {
-  const path = window.location.pathname
-  if (path === '/login') {
-    return <LoginPage />
-  }
-  if (path === '/register') {
-    return <RegistrationPage />
-  }
-  if (path === '/dashboard' || path.startsWith('/dashboard/')) {
-    return <DashboardPage />
+function HomePage() {
+  const [health, setHealth] = useState<'checking' | 'online' | 'offline'>('checking')
+  const apiUrl = import.meta.env.VITE_API_URL || 'same-origin /api'
+
+  async function checkHealth() {
+    setHealth('checking')
+    try {
+      const response = await fetch('/api/health')
+      setHealth(response.ok ? 'online' : 'offline')
+    } catch {
+      setHealth('offline')
+    }
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+  useEffect(() => {
+    void checkHealth()
+  }, [])
 
   return (
     <div className="min-h-svh bg-[#070b14] text-slate-100">
@@ -255,8 +265,10 @@ export default function App() {
             <p className="text-sm font-medium text-slate-200">Platform status</p>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-400">Frontend</dt>
-                <dd className="text-emerald-300">Online</dd>
+                <dt className="text-slate-400">API service</dt>
+                <dd className={health === 'online' ? 'text-emerald-300' : health === 'offline' ? 'text-rose-300' : 'text-amber-300'}>
+                  {health === 'online' ? 'Online' : health === 'offline' ? 'Offline' : 'Checking...'}
+                </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-slate-400">API base URL</dt>
@@ -264,7 +276,11 @@ export default function App() {
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-slate-400">Health check</dt>
-                <dd className="font-mono text-xs text-slate-300">GET /api/health</dd>
+                <dd>
+                  <button className="font-mono text-xs text-cyan-200 underline hover:text-white" onClick={() => void checkHealth()} type="button">
+                    GET /api/health · retry
+                  </button>
+                </dd>
               </div>
             </dl>
           </div>
@@ -299,4 +315,12 @@ export default function App() {
       </main>
     </div>
   )
+}
+
+export default function App() {
+  const path = window.location.pathname
+  if (path === '/login') return <LoginPage />
+  if (path === '/register') return <RegistrationPage />
+  if (path === '/dashboard' || path.startsWith('/dashboard/')) return <DashboardPage />
+  return <HomePage />
 }

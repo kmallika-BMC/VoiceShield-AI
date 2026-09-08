@@ -4,7 +4,7 @@ import { isVoiceModelLoaded, loadVoiceModel, predictVoice } from '../ai/voice-mo
 import { getDb } from '../db.js'
 import { requireAuth } from '../middleware/require-auth.js'
 
-const allowedTypes = new Set(['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a'])
+const allowedTypes = new Set(['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/webm'])
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 1, fileSize: 25 * 1024 * 1024 },
@@ -14,14 +14,8 @@ const upload = multer({
 export const detectionRouter = Router()
 loadVoiceModel()
 
-detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req, res, next) => {
-  const file = req.file
-  if (!file) {
-    res.status(400).json({ error: 'Upload a WAV, MP3, or M4A audio file.' })
-    return
-  }
-
-  const samples = Array.from(file.buffer, (value) => Math.abs(value - 128) / 128)
+function analyzeAudioBuffer(buffer: Buffer) {
+  const samples = Array.from(buffer, (value) => Math.abs(value - 128) / 128)
   const mean = samples.reduce((sum, value) => sum + value, 0) / Math.max(samples.length, 1)
   const variance =
     samples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(samples.length, 1)
@@ -29,12 +23,22 @@ detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req
     samples.slice(1).reduce((count, value, index) => {
       return count + (value >= 0.5 !== samples[index] >= 0.5 ? 1 : 0)
     }, 0) / Math.max(samples.length - 1, 1)
+  return predictVoice({
+    zeroCrossingRate,
+    dynamicRange: Math.min(Math.sqrt(variance) * 3, 1),
+    spectralVariation: Math.min(variance * 8, 1),
+  })
+}
+
+detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req, res, next) => {
+  const file = req.file
+  if (!file) {
+    res.status(400).json({ error: 'Upload a WAV, MP3, or M4A audio file.' })
+    return
+  }
+
   try {
-    const result = predictVoice({
-      zeroCrossingRate,
-      dynamicRange: Math.min(Math.sqrt(variance) * 3, 1),
-      spectralVariation: Math.min(variance * 8, 1),
-    })
+    const result = analyzeAudioBuffer(file.buffer)
     const database = await getDb()
     await database.query(
       `INSERT INTO detection_logs
@@ -51,6 +55,25 @@ detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req
       ],
     )
     res.json({ modelLoaded: isVoiceModelLoaded(), prediction: result.classification, ...result })
+  } catch (error) {
+    next(error)
+  }
+})
+
+detectionRouter.post('/live', requireAuth, upload.single('audio'), async (req, res, next) => {
+  const file = req.file
+  if (!file) {
+    res.status(400).json({ error: 'A live audio chunk is required.' })
+    return
+  }
+
+  try {
+    const result = analyzeAudioBuffer(file.buffer)
+    res.json({
+      modelLoaded: isVoiceModelLoaded(),
+      prediction: result.classification,
+      ...result,
+    })
   } catch (error) {
     next(error)
   }

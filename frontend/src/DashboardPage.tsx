@@ -40,14 +40,14 @@ function pageContent(path: string) {
       description: 'Review your recent voice verification and detection activity.',
       action: 'No detections yet',
     }
-    if (path === '/dashboard/stats') {
-      return {
-        title: 'Attack statistics',
-        description: 'Review attack frequency and risk patterns across your detections.',
-        action: 'Statistics ready',
-      }
-    }
+  }
 
+  if (path === '/dashboard/stats') {
+    return {
+      title: 'Attack statistics',
+      description: 'Review attack frequency and risk patterns across your detections.',
+      action: 'Statistics ready',
+    }
   }
 
   if (path === '/dashboard/profile') {
@@ -78,6 +78,7 @@ export default function DashboardPage() {
   const [historyDateFrom, setHistoryDateFrom] = useState('')
   const [historyDateTo, setHistoryDateTo] = useState('')
   const [stats, setStats] = useState<DetectionStats | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const content = pageContent(window.location.pathname)
 
   useEffect(() => {
@@ -91,6 +92,9 @@ export default function DashboardPage() {
       .then(async (response) => {
         const result: { user?: DashboardUser; error?: string } = await response.json()
         if (!response.ok || !result.user) {
+          if (response.status === 401) {
+            localStorage.removeItem('voiceshield_access_token')
+          }
           throw new Error(result.error ?? 'Unable to load dashboard.')
         }
         setUser(result.user)
@@ -98,6 +102,9 @@ export default function DashboardPage() {
       })
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : 'Unable to load dashboard.')
+      })
+      .finally(() => {
+        setIsLoading(false)
       })
   }, [])
 
@@ -231,7 +238,17 @@ export default function DashboardPage() {
             ))}
           </nav>
 
-          {error && <p className="rounded-lg border border-rose-400/20 bg-rose-400/10 p-4 text-rose-200">{error}</p>}
+          {error && (
+            <div className="rounded-lg border border-rose-400/20 bg-rose-400/10 p-4 text-rose-200">
+              <p>{error}</p>
+              {error.toLowerCase().includes('authentication') || error.toLowerCase().includes('token') ? (
+                <a className="mt-3 inline-block font-semibold text-white underline" href="/login">
+                  Return to sign in
+                </a>
+              ) : null}
+            </div>
+          )}
+          {isLoading && <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/5 p-4 text-cyan-100">Loading your protected workspace...</p>}
           {user && (
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <article className="rounded-2xl border border-white/10 bg-white/5 p-5">
