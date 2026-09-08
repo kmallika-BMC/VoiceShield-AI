@@ -61,7 +61,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] User login API
+- [x] User login API
 
 ### Acceptance Criteria
 - Valid credentials generate JWT token.
@@ -69,7 +69,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Protected routes
+- [x] Protected routes
 
 ### Acceptance Criteria
 - Unauthorized users cannot access dashboard APIs.
@@ -81,7 +81,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ## Dashboard UI
 
-- [ ] Create dashboard layout
+- [x] Create dashboard layout
 
 ### Acceptance Criteria
 - User can access dashboard after login.
@@ -89,7 +89,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Sidebar navigation
+- [x] Sidebar navigation
 
 ### Acceptance Criteria
 - Navigation works between pages.
@@ -97,7 +97,7 @@ This roadmap is organized from **easiest → hardest** and is designed for a hac
 
 ---
 
-- [ ] Profile page
+- [x] Profile page
 
 ### Acceptance Criteria
 - User information displayed correctly.

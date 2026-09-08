@@ -1,5 +1,6 @@
 import { Router } from 'express'
-import { hashPassword } from '../auth/password.js'
+import { hashPassword, verifyPassword } from '../auth/password.js'
+import { createAccessToken } from '../auth/jwt.js'
 import { getDb } from '../db.js'
 
 const MINIMUM_PASSWORD_LENGTH = 8
@@ -16,6 +17,7 @@ authRouter.post('/register', async (req, res, next) => {
       res.status(400).json({
         error: `Provide a name, a valid email, and a password of at least ${MINIMUM_PASSWORD_LENGTH} characters.`,
       })
+
       return
     }
 
@@ -39,6 +41,39 @@ authRouter.post('/register', async (req, res, next) => {
 
       throw error
     }
+  } catch (error) {
+    next(error)
+  }
+})
+
+authRouter.post('/login', async (req, res, next) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+    const password = typeof req.body?.password === 'string' ? req.body.password : ''
+
+    if (!isValidEmail(email) || !password) {
+      res.status(401).json({ error: 'Invalid email or password.' })
+      return
+    }
+
+    const database = await getDb()
+    const result = await database.query<{
+      user_id: string
+      name: string
+      email: string
+      password_hash: string
+    }>('SELECT user_id, name, email, password_hash FROM users WHERE email = $1', [email])
+    const user = result.rows[0]
+
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
+      res.status(401).json({ error: 'Invalid email or password.' })
+      return
+    }
+
+    res.json({
+      token: createAccessToken({ userId: user.user_id, email: user.email }),
+      user: { user_id: user.user_id, name: user.name, email: user.email },
+    })
   } catch (error) {
     next(error)
   }

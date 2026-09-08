@@ -3,12 +3,16 @@ import express from 'express'
 import { config } from './config.js'
 import { pingDatabase } from './db.js'
 import { authRouter } from './routes/auth.js'
+import { dashboardRouter } from './routes/dashboard.js'
+import { profileRouter } from './routes/profile.js'
 
 const app = express()
 
 app.use(cors({ origin: config.corsOrigin }))
 app.use(express.json())
 app.use('/api/auth', authRouter)
+app.use('/api/dashboard', dashboardRouter)
+app.use('/api/profile', profileRouter)
 
 app.get('/api/health', async (_req, res) => {
   const databaseConnected = await pingDatabase()

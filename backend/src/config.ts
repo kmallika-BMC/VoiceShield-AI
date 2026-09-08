@@ -17,5 +17,6 @@ export const config = {
   port: Number(process.env.PORT) || 5000,
   corsOrigin: required('CORS_ORIGIN'),
   databasePath: required('DATABASE_PATH'),
+  jwtSecret: required('JWT_SECRET'),
   backendRoot,
 }

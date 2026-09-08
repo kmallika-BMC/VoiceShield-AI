@@ -1,14 +1,59 @@
 import { useState, type FormEvent } from 'react'
+import DashboardPage from './DashboardPage'
 
-function AuthPlaceholder({ title }: { title: string }) {
+function LoginPage() {
+  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const result: { token?: string; error?: string } = await response.json()
+
+      if (!response.ok || !result.token) {
+        setError(result.error ?? 'Login failed. Please try again.')
+        return
+      }
+
+      localStorage.setItem('voiceshield_access_token', result.token)
+      window.location.href = '/dashboard'
+    } catch {
+      setError('The login service is unavailable. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="grid min-h-svh place-items-center bg-[#070b14] px-6 text-slate-100">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8">
-        <h1 className="text-2xl font-semibold text-white">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-300">
-          Authentication APIs and forms are scheduled after this project foundation
-          phase. The home page, backend, and database are in place now.
-        </p>
+        <h1 className="text-2xl font-semibold text-white">Login</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-300">Sign in to access your protected dashboard.</p>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <label className="block text-sm text-slate-300">
+            Email
+            <input className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2.5 text-white outline-none focus:border-cyan-300" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <label className="block text-sm text-slate-300">
+            Password
+            <input className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-950/60 px-3 py-2.5 text-white outline-none focus:border-cyan-300" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+          </label>
+          {error && <p className="text-sm text-rose-300">{error}</p>}
+          <button className="w-full rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
         <a className="mt-6 inline-block text-sm font-semibold text-cyan-300" href="/">
           Back to home
         </a>
@@ -131,10 +176,13 @@ const features = [
 export default function App() {
   const path = window.location.pathname
   if (path === '/login') {
-    return <AuthPlaceholder title="Login" />
+    return <LoginPage />
   }
   if (path === '/register') {
     return <RegistrationPage />
+  }
+  if (path === '/dashboard' || path.startsWith('/dashboard/')) {
+    return <DashboardPage />
   }
 
   const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
