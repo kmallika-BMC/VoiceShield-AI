@@ -120,6 +120,7 @@ export default function AudioAnalysis() {
   function stopLiveAnalysis() {
     liveRecorder.current?.stop()
     liveStream.current?.getTracks().forEach((track) => track.stop())
+    liveRequestInFlight.current = false
     setLiveRecording(false)
   }
 
