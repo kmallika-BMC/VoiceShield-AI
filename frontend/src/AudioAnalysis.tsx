@@ -24,6 +24,7 @@ export default function AudioAnalysis() {
   )
   const liveRecorder = useRef<MediaRecorder | null>(null)
   const liveStream = useRef<MediaStream | null>(null)
+  const liveRequestInFlight = useRef(false)
 
   useEffect(() => () => {
     liveRecorder.current?.stop()
@@ -52,15 +53,18 @@ export default function AudioAnalysis() {
   }
 
   async function analyzeLiveChunk(chunk: Blob) {
+    if (liveRequestInFlight.current) return
+    liveRequestInFlight.current = true
     const form = new FormData()
     form.append('audio', new File([chunk], 'live-chunk.webm', { type: chunk.type || 'audio/webm' }))
     const startedAt = performance.now()
+    try {
     const response = await fetch('/api/detection/live', {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('voiceshield_access_token') ?? ''}` },
       body: form,
     })
-    const result = (await response.json()) as Partial<LiveDetection> & { error?: string }
+    const result = (await response.json().catch(() => ({}))) as Partial<LiveDetection> & { error?: string }
     if (
       !response.ok ||
       !result.prediction ||
@@ -76,6 +80,9 @@ export default function AudioAnalysis() {
     })
     notifyDetection(result.prediction, result.riskScore)
     setLiveLatency(Math.round(performance.now() - startedAt))
+    } finally {
+      liveRequestInFlight.current = false
+    }
   }
 
   async function startLiveAnalysis() {
@@ -152,7 +159,7 @@ export default function AudioAnalysis() {
         job?: { original_name: string; status: string; mfcc?: number[]; spectrogram?: number[][] }
         error?: string
       } =
-        await response.json()
+        await response.json().catch(() => ({}))
       if (!response.ok || !result.job) {
         throw new Error(result.error ?? 'Unable to start audio processing.')
       }
@@ -182,7 +189,7 @@ export default function AudioAnalysis() {
         detection.riskScore === undefined
         || !detection.reasons?.length
       ) {
-        throw new Error(detection.error ?? 'Unable to classify audio.')
+        throw new Error(detection.error ?? `Audio classification failed (${detectionResponse.status}).`)
       }
       setPrediction(detection.classification)
       setConfidenceScore(detection.confidenceScore)
@@ -219,12 +226,12 @@ export default function AudioAnalysis() {
       )}
       <h2 className="text-lg font-semibold text-white">Analyze an audio recording</h2>
       <p className="mt-2 text-sm leading-6 text-slate-300">
-        Upload a WAV, MP3, or M4A recording to start an audio processing job.
+        Upload a WAV, MP3, M4A, WebM, or OGG recording to start an audio processing job.
       </p>
       <label className="mt-5 block cursor-pointer rounded-xl border border-dashed border-cyan-300/40 bg-cyan-300/5 p-6 text-center text-sm text-cyan-100">
         {file ? file.name : 'Choose an audio file'}
         <input
-          accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4"
+          accept=".wav,.mp3,.m4a,.webm,.ogg,audio/wav,audio/mpeg,audio/mp4,audio/webm,audio/ogg"
           className="hidden"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           type="file"

@@ -4,11 +4,20 @@ import { isVoiceModelLoaded, loadVoiceModel, predictVoice } from '../ai/voice-mo
 import { getDb } from '../db.js'
 import { requireAuth } from '../middleware/require-auth.js'
 
-const allowedTypes = new Set(['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/webm'])
+const allowedTypes = new Set([
+  'audio/wav',
+  'audio/x-wav',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/webm',
+  'audio/ogg',
+])
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 1, fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, callback) => callback(null, allowedTypes.has(file.mimetype)),
+  fileFilter: (_req, file, callback) =>
+    callback(null, allowedTypes.has(file.mimetype.split(';', 1)[0].trim().toLowerCase())),
 })
 
 export const detectionRouter = Router()
@@ -54,7 +63,7 @@ async function saveAlert(userId: string | undefined, classification: string, ris
 detectionRouter.post('/predict', requireAuth, upload.single('audio'), async (req, res, next) => {
   const file = req.file
   if (!file) {
-    res.status(400).json({ error: 'Upload a WAV, MP3, or M4A audio file.' })
+    res.status(400).json({ error: 'Upload a WAV, MP3, M4A, WebM, or OGG audio file.' })
     return
   }
 

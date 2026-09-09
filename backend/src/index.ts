@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import multer from 'multer'
 import { config } from './config.js'
 import { pingDatabase } from './db.js'
 import { authRouter } from './routes/auth.js'
@@ -46,6 +47,14 @@ app.use((error: unknown, _req: express.Request, res: express.Response, next: exp
   }
   if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') {
     res.status(413).json({ error: 'Request payload is too large.' })
+    return
+  }
+  if (error instanceof multer.MulterError) {
+    const message =
+      error.code === 'LIMIT_FILE_SIZE'
+        ? 'Audio file is too large. The maximum size is 25 MB.'
+        : 'Audio upload failed. Please choose a supported audio file.'
+    res.status(400).json({ error: message })
     return
   }
   next(error)

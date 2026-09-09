@@ -6,11 +6,20 @@ import { config } from '../config.js'
 import { getDb } from '../db.js'
 import { requireAuth } from '../middleware/require-auth.js'
 
-const allowedTypes = new Set(['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a'])
+const allowedTypes = new Set([
+  'audio/wav',
+  'audio/x-wav',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/webm',
+  'audio/ogg',
+])
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 1, fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, callback) => callback(null, allowedTypes.has(file.mimetype)),
+  fileFilter: (_req, file, callback) =>
+    callback(null, allowedTypes.has(file.mimetype.split(';', 1)[0].trim().toLowerCase())),
 })
 
 export const analysisRouter = Router()
@@ -22,7 +31,7 @@ function preprocessAudio(input: Buffer) {
     const next = samples[index + 1] ?? sample
     return (previous + sample + next) / 3
   })
-  const peak = Math.max(...reducedNoise.map((sample) => Math.abs(sample)), 1)
+  const peak = reducedNoise.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 1)
   const normalized = Buffer.from(reducedNoise.map((sample) => Math.round((sample / peak) * 127 + 128)))
   const frameSize = 256
   const spectrogram: number[][] = []
@@ -50,7 +59,7 @@ analysisRouter.post('/uploads', requireAuth, upload.single('audio'), async (req,
   try {
     const file = req.file
     if (!file) {
-      res.status(400).json({ error: 'Upload a WAV, MP3, or M4A audio file.' })
+      res.status(400).json({ error: 'Upload a WAV, MP3, M4A, WebM, or OGG audio file.' })
       return
     }
 
